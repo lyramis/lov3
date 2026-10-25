@@ -1589,6 +1589,7 @@ function lov3.readEntityNode(inputString, depth, parentEntity)
     local parseValue = lov3.parseValue
 
     depth = depth or 0
+
     local indent = string.rep("\t", depth)
     local componentIndent = table.concat({"[^\t]", indent, "\t"})
     local entity = nil
@@ -1596,7 +1597,7 @@ function lov3.readEntityNode(inputString, depth, parentEntity)
     for entityString in string.gmatch(inputString, table.concat({indent, "entity(.-)\n", indent, ";"})) do
 
         local entityContents  = {}
-        
+
         entityContents.name = parseValue(string.match(entityString, componentIndent .. "name%s+(.-)[\r\n]"))
 
         if string.match(entityString, componentIndent .. "transform3") then
@@ -1648,7 +1649,11 @@ function lov3.readEntityNode(inputString, depth, parentEntity)
 end
 
 function lov3.loadEntity(path, isRoot)
-    local entity = lov3.readEntityNode((love.filesystem.read(path)))
+    local fileContents = love.filesystem.read(path)
+    if fileContents == nil then
+      error("Failed to read \"" .. path .. "\".")
+    end
+    local entity = lov3.readEntityNode(fileContents)
     if isRoot then lov3.setRootEntity(entity) end
     return entity
 end

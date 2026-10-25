@@ -1,4 +1,4 @@
-io.stdout:setvbuf('no')
+io.stdout:setvbuf("no")
 
 local lov3 = require("lov3")
 local game = require("game")
@@ -6,9 +6,10 @@ local game = require("game")
 local IS_PAUSED = false
 local TIME = 0
 local SHOW_SAVE_DIALOG = false
-local loadScenePath, saveScenePath = "test_scene_b.entity", "test_scene_b.entity"
+local loadScenePath, saveScenePath = "test_scene.entity", "test_scene.entity"
 local scene, yaw, block_a, camera, red_light, green_light, blue_light, player, block_b, pitch
 local PI = math.pi
+local TAU = math.pi * 2
 
 local leftMouseDown = false
 local mouseDownX, mouseDownY = 0, 0
@@ -17,7 +18,7 @@ local targetTheta, targetGamma = 0, 0
 local targetPos, origPos = vec3(), vec3()
 local isMoving = false
 local moveFactor = 0
-local bounds = transform3.new({position = vec3(0, 8, 0), scale = vec3(8,8,8)})
+local bounds = transform3.new({ position = vec3(0, 8, 0), scale = vec3(8, 8, 8) })
 
 function love.load()
 	love.graphics.setNewFont(18)
@@ -25,6 +26,7 @@ function love.load()
 	scene = lov3.loadEntity(loadScenePath, true)
 
 	player = lov3.findEntity("player")
+
 	yaw = lov3.findEntity("yaw")
 	pitch = lov3.findEntity("pitch")
 	camera = lov3.findEntity("camera")
@@ -39,14 +41,18 @@ function love.load()
 	targetTheta = yaw and yaw.transform3.rotation.y or 0
 end
 
-local function translate(dt)
+local function easeToTargetPosition(dt)
 	if not isMoving then
 		return
 	end
 
 	local reach = (bounds.position - targetPos)
 
-	if math.abs(reach.x) > bounds.scale.x or math.abs(reach.y) > bounds.scale.y or math.abs(reach.z) > bounds.scale.z then
+	if
+		math.abs(reach.x) > bounds.scale.x
+		or math.abs(reach.y) > bounds.scale.y
+		or math.abs(reach.z) > bounds.scale.z
+	then
 		isMoving = false
 		return
 	end
@@ -59,38 +65,60 @@ local function translate(dt)
 	end
 end
 
-local function rotate(dt)
+local function easeToTargetRotation(dt)
 	if leftMouseDown then
-		deltaTheta = (mouseDownX - love.mouse.getX())/love.graphics.getWidth() * 2
-		deltaGamma = (mouseDownY - love.mouse.getY())/love.graphics.getHeight() * 2
+		deltaTheta = (mouseDownX - love.mouse.getX()) / love.graphics.getWidth() * 2
+		deltaGamma = (mouseDownY - love.mouse.getY()) / love.graphics.getHeight() * 2
 		yaw.transform3:setRotation(yaw.transform3.rotation.x, targetTheta + deltaTheta, yaw.transform3.rotation.z)
 		pitch.transform3:setRotation(targetGamma + deltaGamma, pitch.transform3.rotation.y, pitch.transform3.rotation.z)
 	else
-		yaw.transform3:setRotation(yaw.transform3.rotation.x, lov3.lerp(yaw.transform3.rotation.y, targetTheta, 0.02), yaw.transform3.rotation.z)
-		pitch.transform3:setRotation(lov3.lerp(pitch.transform3.rotation.x, targetGamma, 0.02), pitch.transform3.rotation.y, pitch.transform3.rotation.z)
+		yaw.transform3:setRotation(
+			yaw.transform3.rotation.x,
+			lov3.lerp(yaw.transform3.rotation.y, targetTheta, 0.02),
+			yaw.transform3.rotation.z
+		)
+		pitch.transform3:setRotation(
+			lov3.lerp(pitch.transform3.rotation.x, targetGamma, 0.02),
+			pitch.transform3.rotation.y,
+			pitch.transform3.rotation.z
+		)
 	end
 end
 
-function love.update (dt)
-
-	rotate(dt)
-	translate(dt)
+function love.update(dt)
 
 	if IS_PAUSED then
 		return
 	end
 
+	easeToTargetRotation(dt)
+	easeToTargetPosition(dt)
+
 	TIME = TIME + dt
 end
 
-
-
 function love.draw()
 	lov3.render()
-	love.graphics.print("FPS: " .. love.timer.getFPS() .. "\t" .. "DC: " .. love.graphics.getStats().drawcalls)
+	love.graphics.print(
+		"FPS: "
+			.. love.timer.getFPS()
+			.. "\t"
+			.. "DC: "
+			.. love.graphics.getStats().drawcalls
+			.. "\t["
+			.. love.graphics.getWidth()
+			.. "x"
+			.. love.graphics.getHeight()
+			.. "]"
+	)
 
 	if SHOW_SAVE_DIALOG then
-		love.graphics.print(table.concat({"Saved \"", scene.name, "\" to \"", saveScenePath, "\""}), 0, love.graphics.getHeight()-28, 0)
+		love.graphics.print(
+			table.concat({ 'Saved "', scene.name, '" to "', saveScenePath, '"' }),
+			0,
+			love.graphics.getHeight() - 28,
+			0
+		)
 		if TIME - SAVE_TIME > 2 then
 			SHOW_SAVE_DIALOG = false
 		end
@@ -104,22 +132,33 @@ function love.mousepressed(x, y, button, istouch, presses)
 	end
 end
 
-function love.mousemoved( x, y, dx, dy, istouch )
-end
+function love.mousemoved(x, y, dx, dy, istouch) end
 
-function love.mousereleased (x, y, button, istouch, presses)
+function love.mousereleased(x, y, button, istouch, presses)
 	if button == 1 then
 		leftMouseDown = false
 	end
 end
 
-function love.keypressed (key, scancode, isrepeat)
-	if key == "space" then IS_PAUSED = not IS_PAUSED end
-	if key == "v" then lov3.IS_SHADOW_DEBUG = not lov3.IS_SHADOW_DEBUG end
-	if key == "l" then lov3.SKIP_SHADOWS = not lov3.SKIP_SHADOWS end
-	if key == "p" then lov3.SKIP_POST_PROCESSING = not lov3.SKIP_POST_PROCESSING end
-	if key == "f11" then love.window.setFullscreen(not love.window.getFullscreen()) end
-	if key == "escape" then love.event.quit() end
+function love.keypressed(key, scancode, isrepeat)
+	if key == "space" then
+		IS_PAUSED = not IS_PAUSED
+	end
+	if key == "v" then
+		lov3.IS_SHADOW_DEBUG = not lov3.IS_SHADOW_DEBUG
+	end
+	if key == "l" then
+		lov3.SKIP_SHADOWS = not lov3.SKIP_SHADOWS
+	end
+	if key == "p" then
+		lov3.SKIP_POST_PROCESSING = not lov3.SKIP_POST_PROCESSING
+	end
+	if key == "f11" then
+		love.window.setFullscreen(not love.window.getFullscreen())
+	end
+	if key == "escape" then
+		love.event.quit()
+	end
 
 	if key == "s" and love.keyboard.isDown("lctrl", "rctrl") then
 		if lov3.saveEntityTo(scene, saveScenePath) then
@@ -168,7 +207,6 @@ function love.keypressed (key, scancode, isrepeat)
 	local worldPos = vec3(player.transform3:getWorldPosition())
 
 	if key == "w" and not isMoving then
-
 		targetPos = game.toClosestCell(worldPos - yaw.transform3:getBasisZ())
 		origPos = game.toClosestCell(worldPos)
 		moveFactor = 0
@@ -207,10 +245,10 @@ function love.keypressed (key, scancode, isrepeat)
 
 	-- rotation
 	if key == "left" or key == "kp4" then
-		targetTheta = targetTheta + PI/2
+		targetTheta = targetTheta + PI / 2
 	end
 	if key == "right" or key == "kp6" then
-		targetTheta = targetTheta - PI/2
+		targetTheta = targetTheta - PI / 2
 	end
 end
 
@@ -218,5 +256,5 @@ function love.resize(w, h)
 	lov3.resizeCamera3(camera.camera3, w, h)
 end
 
-function love.quit()
-end
+function love.quit() end
+
